@@ -4,33 +4,52 @@ export default {
 
     // Backend: Handle the API request from the frontend
     if (request.method === 'POST' && url.pathname === '/api/chat') {
-      try {
-        const { prompt, model } = await request.json();
-        
-        // Call Cloudflare's AI network
-        const response = await env.AI.run(
-            model, 
-            {
-                messages: [
-                    { role: 'system', content: 'You are a helpful, intelligent assistant.' },
-                    { role: 'user', content: prompt }
-                ]
-            },
-            {
-                gateway: { id: 'default' }
-            }
-        );
+try {
+const { prompt, model } = await request.json();
+let response;
 
-        return new Response(JSON.stringify(response), {
-          headers: { 'Content-Type': 'application/json' }
-        });
-      } catch (error) {
-        return new Response(JSON.stringify({ error: error.message }), { 
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-      }
+// Check if the model is one of the "picky" external ones
+const isExternal = model.startsWith('anthropic/') || model.startsWith('alibaba/');
+
+if (isExternal) {
+  // Logic for Claude and Qwen
+  response = await env.AI.run(
+    model,
+    {
+      max_tokens: 1024,
+      system: "You are a helpful assistant.",
+      messages: [{ role: 'user', content: prompt }]
+    },
+    {
+      gateway: { id: 'default' }
     }
+  );
+} else {
+  // Simpler logic for native @cf/ models
+  response = await env.AI.run(model, {
+    messages: [
+      { role: 'system', content: 'You are a helpful assistant.' },
+      { role: 'user', content: prompt }
+    ]
+  });
+}
+
+return new Response(JSON.stringify(response), {
+  headers: { 
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*'
+  }
+});
+} catch (error) {
+return new Response(JSON.stringify({ error: error.message }), {
+status: 500,
+headers: {
+'Content-Type': 'application/json',
+'Access-Control-Allow-Origin': '*'
+}
+});
+}
+}
 
     // Frontend: Serve the HTML UI
     return new Response(HTML_PAGE, {
