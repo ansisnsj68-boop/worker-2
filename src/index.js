@@ -66,8 +66,8 @@ const HTML_PAGE = `
     <header class="p-3 border-b border-gray-700 flex justify-between items-center bg-[#212121] sticky top-0 z-10">
         <h1 class="text-lg font-semibold text-gray-200 tracking-wide">Workers AI</h1>
         <select id="model-select" class="bg-gray-800 text-gray-200 border border-gray-600 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2 outline-none cursor-pointer">
-            <option value="@cfanthropic/claude-opus-4.6">Claude Opus 4.6</option>
-            <option value="@cfalibaba/qwen3-max">Qwen 3 Max</option>
+            <option value="anthropic/claude-opus-4.6">Claude Opus 4.6</option>
+            <option value="alibaba/qwen3-max">Qwen 3 Max</option>
             
             <option value="@cf/meta/llama-3-8b-instruct">Llama 3 (8B)</option>
             <option value="@cf/mistral/mistral-7b-instruct-v0.1">Mistral (7B)</option>
