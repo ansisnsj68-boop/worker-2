@@ -65,7 +65,7 @@ const HTML_PAGE = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Workers AI Chat</title>
+    <title>Worker</title>
     
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
     
