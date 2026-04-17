@@ -1,0 +1,7 @@
+name = "ai-chat-ui"
+main = "src/index.js"
+compatibility_date = "2024-04-17"
+
+# Bind the Cloudflare AI network to this worker
+[ai]
+binding = "AI"
