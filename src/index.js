@@ -41,7 +41,11 @@ const HTML_PAGE = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Workers AI Chat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="[https://cdn.tailwindcss.com?plugins=typography](https://cdn.tailwindcss.com?plugins=typography)"></script>
+    
+    <script src="[https://cdn.jsdelivr.net/npm/marked/marked.min.js](https://cdn.jsdelivr.net/npm/marked/marked.min.js)"></script>
+    
     <style>
         body { background-color: #212121; color: #ececec; }
         .chat-bg { background-color: #212121; }
@@ -50,6 +54,11 @@ const HTML_PAGE = `
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+        
+        /* Custom tweaks for the markdown typography */
+        .prose pre { background-color: #1a1a1a; border: 1px solid #333; }
+        .prose code { color: #emerald-400; background-color: rgba(255,255,255,0.1); padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
+        .prose pre code { background-color: transparent; padding: 0; }
     </style>
 </head>
 <body class="flex flex-col h-screen font-sans antialiased">
@@ -57,6 +66,9 @@ const HTML_PAGE = `
     <header class="p-3 border-b border-gray-700 flex justify-between items-center bg-[#212121] sticky top-0 z-10">
         <h1 class="text-lg font-semibold text-gray-200 tracking-wide">Workers AI</h1>
         <select id="model-select" class="bg-gray-800 text-gray-200 border border-gray-600 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2 outline-none cursor-pointer">
+            <option value="anthropic/claude-opus-4.6">Claude Opus 4.6</option>
+            <option value="alibaba/qwen3-max">Qwen 3 Max</option>
+            
             <option value="@cf/meta/llama-3-8b-instruct">Llama 3 (8B)</option>
             <option value="@cf/mistral/mistral-7b-instruct-v0.1">Mistral (7B)</option>
             <option value="@cf/google/gemma-7b-it">Gemma (7B)</option>
@@ -66,7 +78,7 @@ const HTML_PAGE = `
     </header>
 
     <main id="chat-container" class="flex-1 overflow-y-auto p-4 pb-32 space-y-6">
-        <div class="flex gap-4 max-w-3xl mx-auto p-2">
+        <div class="flex gap-4 max-w-3xl mx-auto p-2 w-full">
             <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div>
             <div class="flex-1 mt-1 text-gray-200">Hello! Select a model from the top right and ask me anything.</div>
         </div>
@@ -77,7 +89,7 @@ const HTML_PAGE = `
             <div class="bg-[#2f2f2f] rounded-xl border border-gray-600 focus-within:border-gray-500 flex items-end overflow-hidden px-2 py-2">
                 <textarea id="prompt-input" rows="1" class="block w-full max-h-48 py-2 px-3 text-gray-100 bg-transparent resize-none leading-6" placeholder="Message Workers AI..."></textarea>
                 <button id="send-btn" class="mb-1 ml-2 bg-white text-black hover:bg-gray-200 rounded-lg p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"></path></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"></path></svg>
                 </button>
             </div>
             <div class="text-xs text-center text-gray-400 mt-3">AI models can make mistakes. Verify important information.</div>
@@ -85,6 +97,12 @@ const HTML_PAGE = `
     </footer>
 
     <script>
+        // Configure marked.js to allow line breaks
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
         const chatContainer = document.getElementById('chat-container');
         const promptInput = document.getElementById('prompt-input');
         const sendBtn = document.getElementById('send-btn');
@@ -101,16 +119,26 @@ const HTML_PAGE = `
             const div = document.createElement('div');
             const isUser = role === 'user';
             
-            div.className = 'flex gap-4 max-w-3xl mx-auto p-2';
+            div.className = 'flex gap-4 max-w-3xl mx-auto p-2 w-full';
             
             const avatar = isUser 
                 ? '<div class="w-8 h-8 rounded-full user-bg border border-gray-600 flex items-center justify-center font-bold text-xs shrink-0">U</div>'
                 : '<div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div>';
             
-            // Format line breaks properly
-            const formattedText = text.replace(/\\n/g, '<br>').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let contentHtml = '';
             
-            div.innerHTML = avatar + '<div class="flex-1 mt-1 text-gray-200 leading-7 whitespace-pre-wrap">' + formattedText + '</div>';
+            if (isUser) {
+                // For user messages, escape HTML so they can't accidentally inject code, but keep line breaks
+                const escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                contentHtml = '<div class="text-gray-200 leading-7 whitespace-pre-wrap">' + escapedText + '</div>';
+            } else {
+                // For AI messages, parse the markdown (and literal <br> tags) into proper HTML
+                // We use the 'prose prose-invert' class from Tailwind to automatically style the markdown!
+                const parsedMarkdown = marked.parse(text);
+                contentHtml = '<div class="text-gray-200 leading-7 overflow-x-auto prose prose-invert max-w-none">' + parsedMarkdown + '</div>';
+            }
+            
+            div.innerHTML = avatar + '<div class="flex-1 mt-1">' + contentHtml + '</div>';
             
             chatContainer.appendChild(div);
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -131,7 +159,7 @@ const HTML_PAGE = `
             const loadingId = 'loading-' + Date.now();
             const loadingDiv = document.createElement('div');
             loadingDiv.id = loadingId;
-            loadingDiv.className = 'flex gap-4 max-w-3xl mx-auto p-2';
+            loadingDiv.className = 'flex gap-4 max-w-3xl mx-auto p-2 w-full';
             loadingDiv.innerHTML = '<div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div><div class="flex-1 mt-1 text-gray-400 animate-pulse">Thinking...</div>';
             chatContainer.appendChild(loadingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
