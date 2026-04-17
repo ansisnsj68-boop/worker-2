@@ -2,190 +2,177 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // Backend: Handle the API request from the frontend
-    if (request.method === 'POST' && url.pathname === '/api/chat') {
-try {
-const { prompt, model } = await request.json();
-let response;
-
-// Check if the model is one of the "picky" external ones
-const isExternal = model.startsWith('anthropic/') || model.startsWith('alibaba/') || model.startsWith('google/');
-
-if (isExternal) {
-  // Logic for Claude and Qwen
-  response = await env.AI.run(
-    model,
-    {
-      max_tokens: 1024,
-      system: "You are a helpful assistant.",
-      messages: [{ role: 'user', content: prompt }]
-    },
-    {
-      gateway: { id: 'default' }
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
     }
-  );
-} else {
-  // Simpler logic for native @cf/ models
-  response = await env.AI.run(model, {
-    messages: [
-      { role: 'system', content: 'You are a helpful assistant.' },
-      { role: 'user', content: prompt }
-    ]
-  });
-}
 
-return new Response(JSON.stringify(response), {
-  headers: { 
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*'
-  }
-});
-} catch (error) {
-return new Response(JSON.stringify({ error: error.message }), {
-status: 500,
-headers: {
-'Content-Type': 'application/json',
-'Access-Control-Allow-Origin': '*'
-}
-});
-}
-}
+    if (request.method === 'POST' && url.pathname === '/api/chat') {
+      try {
+        const { prompt, model } = await request.json();
+        let response;
 
-    // Frontend: Serve the HTML UI
+        const isExternal = model.startsWith('anthropic/') || model.startsWith('alibaba/');
+        const isImageModel = model.includes('stable-diffusion') || model.includes('flux');
+
+        if (isImageModel) {
+          response = await env.AI.run(model, { prompt: prompt });
+          
+          return new Response(response, {
+            headers: { 
+              'Content-Type': 'image/png',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else if (isExternal) {
+          response = await env.AI.run(
+            model,
+            {
+              max_tokens: 1024,
+              system: "You are a helpful assistant.",
+              messages: [{ role: 'user', content: prompt }]
+            },
+            {
+              gateway: { id: 'default' }
+            }
+          );
+          
+          return new Response(JSON.stringify(response), {
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        } else {
+          response = await env.AI.run(model, {
+            messages: [
+              { role: 'system', content: 'You are a helpful assistant.' },
+              { role: 'user', content: prompt }
+            ]
+          });
+          
+          return new Response(JSON.stringify(response), {
+            headers: { 
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      } catch (error) {
+        return new Response(JSON.stringify({ error: error.message }), { 
+          status: 500,
+          headers: { 
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          }
+        });
+      }
+    }
+
     return new Response(HTML_PAGE, {
-      headers: { 'Content-Type': 'text/html;charset=UTF-8' }
+      headers: { 
+        'Content-Type': 'text/html;charset=UTF-8',
+        'Access-Control-Allow-Origin': '*'
+      }
     });
   }
 };
 
-// The frontend HTML, CSS (Tailwind), and JS
 const HTML_PAGE = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Worker</title>
-    
+    <title>Workers AI Chat</title>
     <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
     <style>
-        body { background-color: #212121; color: #ececec; }
-        .chat-bg { background-color: #212121; }
-        .user-bg { background-color: #2f2f2f; }
-        textarea:focus { outline: none; box-shadow: none; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
-        
-        /* Custom tweaks for the markdown typography */
-        .prose pre { background-color: #1a1a1a; border: 1px solid #333; }
-        .prose code { color: #34d399; background-color: rgba(255,255,255,0.1); padding: 0.1rem 0.3rem; border-radius: 0.25rem; }
-        .prose pre code { background-color: transparent; padding: 0; }
+        body { background-color: #212121; color: #ececec; margin: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 1px solid #333; background: #212121; }
+        main { flex: 1; overflow-y: auto; padding: 20px; }
+        footer { padding: 20px; background: #212121; }
+        .input-box { max-width: 48rem; margin: 0 auto; background: #2f2f2f; border-radius: 12px; border: 1px solid #444; display: flex; padding: 8px; }
+        textarea { background: transparent; border: none; color: white; width: 100%; padding: 8px; outline: none; resize: none; font-size: 1rem; }
+        .prose pre { background-color: #1a1a1a !important; padding: 16px; border-radius: 8px; border: 1px solid #444; overflow-x: auto; margin: 12px 0; }
+        .prose code { color: #34d399; background: #333; padding: 2px 4px; border-radius: 4px; font-size: 0.9em; }
+        .prose pre code { color: #ececec; background: transparent; padding: 0; font-size: 0.85em; }
+        .prose { max-width: none !important; color: #ececec !important; line-height: 1.6; }
+        .prose strong { color: #fff; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; items-center; justify-center; font-bold; text-xs; margin-top: 4px; }
+        .ai-avatar { background: #059669; }
+        .user-avatar { background: #4b5563; }
     </style>
 </head>
-<body class="flex flex-col h-screen font-sans antialiased">
-
-    <header class="p-3 border-b border-gray-700 flex justify-between items-center bg-[#212121] sticky top-0 z-10">
-        <h1 class="text-lg font-semibold text-gray-200 tracking-wide">Workers AI</h1>
-        <select id="model-select" class="bg-gray-800 text-gray-200 border border-gray-600 text-sm rounded-lg focus:ring-emerald-500 focus:border-emerald-500 block p-2 outline-none cursor-pointer">
+<body>
+    <header>
+        <div style="font-weight: 600; font-size: 1.1rem;">Workers AI</div>
+        <select id="model-select" class="bg-gray-800 text-gray-200 border border-gray-600 rounded-lg p-2 outline-none cursor-pointer">
+            <option value="@cf/black-forest-labs/flux-1-schnell">Flux 1 Schnell (Image)</option>
+            <option value="@cf/stabilityai/stable-diffusion-xl-base-1.0">Stable Diffusion XL (Image)</option>
             <option value="anthropic/claude-opus-4.6">Claude Opus 4.6</option>
             <option value="alibaba/qwen3-max">Qwen 3 Max</option>
-            
             <option value="@cf/meta/llama-3-8b-instruct">Llama 3 (8B)</option>
-            <option value="@cf/mistral/mistral-7b-instruct-v0.1">Mistral (7B)</option>
-            <option value="@hf/google/gemma-7b-it">Gemma (7B)</option>
-            <option value="@cf/qwen/qwen1.5-14b-chat-awq">Qwen 1.5 (14B)</option>
-            <option value="@cf/microsoft/phi-2">Phi-2</option>
+            <option value="@cf/google/gemma-7b-it">Gemma (7B)</option>
         </select>
     </header>
 
-    <main id="chat-container" class="flex-1 overflow-y-auto p-4 pb-32 space-y-6">
-        <div class="flex gap-4 max-w-3xl mx-auto p-2 w-full">
-            <div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div>
-            <div class="flex-1 mt-1 text-gray-200">Hello! Select a model from the top right and ask me anything.</div>
+    <main id="chat-container">
+        <div style="max-width: 48rem; margin: 0 auto; display: flex; gap: 16px; padding: 16px;">
+            <div class="avatar ai-avatar" style="display: flex; align-items: center; justify-content: center; color: white;">AI</div>
+            <div style="margin-top: 8px;">Hello! Select a model and ask me anything.</div>
         </div>
     </main>
 
-    <footer class="fixed bottom-0 w-full chat-bg pt-2 pb-6 px-4">
-        <div class="max-w-3xl mx-auto relative">
-            <div class="bg-[#2f2f2f] rounded-xl border border-gray-600 focus-within:border-gray-500 flex items-end overflow-hidden px-2 py-2">
-                <textarea id="prompt-input" rows="1" class="block w-full max-h-48 py-2 px-3 text-gray-100 bg-transparent resize-none leading-6" placeholder="Message Workers AI..."></textarea>
-                <button id="send-btn" class="mb-1 ml-2 bg-white text-black hover:bg-gray-200 rounded-lg p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"></path></svg>
-                </button>
-            </div>
-            <div class="text-xs text-center text-gray-400 mt-3">AI models can make mistakes. Verify important information.</div>
+    <footer>
+        <div class="input-box">
+            <textarea id="prompt-input" rows="1" placeholder="Message Workers AI..."></textarea>
+            <button id="send-btn" style="background: white; color: black; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer; margin-left: 8px; border: none;">↑</button>
         </div>
+        <div style="text-align: center; font-size: 0.7rem; color: #888; margin-top: 12px;">AI models can make mistakes. Verify important information.</div>
     </footer>
 
     <script>
-        // Configure marked.js to allow line breaks
-        marked.setOptions({
-            breaks: true,
-            gfm: true
-        });
-
+        marked.setOptions({ breaks: true, gfm: true });
         const chatContainer = document.getElementById('chat-container');
         const promptInput = document.getElementById('prompt-input');
         const sendBtn = document.getElementById('send-btn');
         const modelSelect = document.getElementById('model-select');
 
-        // Auto-resize textarea
-        promptInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
-            sendBtn.disabled = this.value.trim() === '';
-        });
-
         function addMessage(role, text) {
-            const div = document.createElement('div');
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display: flex; gap: 16px; padding: 16px; max-width: 48rem; margin: 0 auto;';
+            
             const isUser = role === 'user';
+            const avatarClass = isUser ? 'user-avatar' : 'ai-avatar';
+            const avatarText = isUser ? 'U' : 'AI';
             
-            div.className = 'flex gap-4 max-w-3xl mx-auto p-2 w-full';
+            const content = isUser 
+                ? '<div style="white-space: pre-wrap; margin-top: 8px;">' + text.replace(/</g, '&lt;') + '</div>'
+                : '<div class="prose prose-invert">' + (text.includes('<img') ? text : marked.parse(text)) + '</div>';
             
-            const avatar = isUser 
-                ? '<div class="w-8 h-8 rounded-full user-bg border border-gray-600 flex items-center justify-center font-bold text-xs shrink-0">U</div>'
-                : '<div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div>';
-            
-            let contentHtml = '';
-            
-            if (isUser) {
-                // For user messages, escape HTML so they can't accidentally inject code, but keep line breaks
-                const escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                contentHtml = '<div class="text-gray-200 leading-7 whitespace-pre-wrap">' + escapedText + '</div>';
-            } else {
-                // For AI messages, parse the markdown (and literal <br> tags) into proper HTML
-                // We use the 'prose prose-invert' class from Tailwind to automatically style the markdown!
-                const parsedMarkdown = marked.parse(text);
-                contentHtml = '<div class="text-gray-200 leading-7 overflow-x-auto prose prose-invert max-w-none">' + parsedMarkdown + '</div>';
-            }
-            
-            div.innerHTML = avatar + '<div class="flex-1 mt-1">' + contentHtml + '</div>';
-            
-            chatContainer.appendChild(div);
+            wrapper.innerHTML = '<div class="avatar ' + avatarClass + '" style="display: flex; align-items: center; justify-content: center; color: white;">' + avatarText + '</div><div style="flex: 1;">' + content + '</div>';
+            chatContainer.appendChild(wrapper);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         async function handleSend() {
             const prompt = promptInput.value.trim();
             if (!prompt) return;
-
             const model = modelSelect.value;
-            
             addMessage('user', prompt);
             promptInput.value = '';
-            promptInput.style.height = 'auto';
-            sendBtn.disabled = true;
-
-            // Loading state
+            
             const loadingId = 'loading-' + Date.now();
             const loadingDiv = document.createElement('div');
             loadingDiv.id = loadingId;
-            loadingDiv.className = 'flex gap-4 max-w-3xl mx-auto p-2 w-full';
-            loadingDiv.innerHTML = '<div class="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs shrink-0">AI</div><div class="flex-1 mt-1 text-gray-400 animate-pulse">Thinking...</div>';
+            loadingDiv.style.cssText = 'max-width: 48rem; margin: 0 auto; display: flex; gap: 16px; padding: 16px; color: #888; opacity: 0.6;';
+            loadingDiv.innerHTML = '<div class="avatar ai-avatar" style="display: flex; align-items: center; justify-content: center; color: white;">AI</div><div style="margin-top: 8px;">Thinking...</div>';
             chatContainer.appendChild(loadingDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -193,33 +180,39 @@ const HTML_PAGE = `
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt, model: model })
+                    body: JSON.stringify({ prompt, model })
                 });
                 
-                const data = await response.json();
                 document.getElementById(loadingId).remove();
-                
-                if (data.error) {
-                    addMessage('ai', 'Error: ' + data.error);
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    addMessage('ai', "Error: " + (data.error || "Request failed"));
+                    return;
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('image')) {
+                    const blob = await response.blob();
+                    const imgUrl = URL.createObjectURL(blob);
+                    addMessage('ai', '<img src="' + imgUrl + '" style="border-radius: 8px; max-width: 100%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.3); margin-top: 8px;" />');
                 } else {
-                    addMessage('ai', data.response);
+                    const data = await response.json();
+                    addMessage('ai', data.response || "No response.");
                 }
             } catch (err) {
-                document.getElementById(loadingId).remove();
-                addMessage('ai', 'Error: Could not connect to the server.');
+                if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+                addMessage('ai', "Error communicating with the Worker.");
             }
         }
 
         sendBtn.addEventListener('click', handleSend);
-        promptInput.addEventListener('keypress', (e) => {
+        promptInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
             }
         });
-        
-        // Initial state
-        sendBtn.disabled = true;
     </script>
 </body>
 </html>
