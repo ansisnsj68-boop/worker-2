@@ -8,12 +8,18 @@ export default {
         const { prompt, model } = await request.json();
         
         // Call Cloudflare's AI network
-        const response = await env.AI.run(model, {
-            messages: [
-                { role: 'system', content: 'You are a helpful, intelligent assistant.' },
-                { role: 'user', content: prompt }
-            ]
-        });
+        const response = await env.AI.run(
+            model, 
+            {
+                messages: [
+                    { role: 'system', content: 'You are a helpful, intelligent assistant.' },
+                    { role: 'user', content: prompt }
+                ]
+            },
+            {
+                gateway: { id: 'default' }
+            }
+        );
 
         return new Response(JSON.stringify(response), {
           headers: { 'Content-Type': 'application/json' }
