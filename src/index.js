@@ -96,7 +96,7 @@ const HTML_PAGE = `
             
             <option value="@cf/meta/llama-3-8b-instruct">Llama 3 (8B)</option>
             <option value="@cf/mistral/mistral-7b-instruct-v0.1">Mistral (7B)</option>
-            <option value="google/gemma-7b-it">Gemma (7B)</option>
+            <option value="@hf/google/gemma-7b-it">Gemma (7B)</option>
             <option value="@cf/qwen/qwen1.5-14b-chat-awq">Qwen 1.5 (14B)</option>
             <option value="@cf/microsoft/phi-2">Phi-2</option>
         </select>
