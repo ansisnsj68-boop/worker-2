@@ -3,7 +3,7 @@ export default {
     const url = new URL(request.url);
 
     // ====================================================================
-    // API ROUTE: Handle the text-to-text streaming request
+    // API ROUTE: Handle the text-to-text streaming request 
     // ====================================================================
     if (url.pathname === '/api/text' && request.method === 'POST') {
       try {
