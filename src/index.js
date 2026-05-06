@@ -45,7 +45,7 @@ export default {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>AI Workspace</title>
+      <title>Workspace</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         body { background-color: #212121; color: #ececec; }
@@ -59,7 +59,7 @@ export default {
     <body class="min-h-screen p-4 md:p-8">
 
       <div class="max-w-3xl mx-auto mb-8 flex justify-between items-center bg-[#2f2f2f] p-4 rounded-xl border border-[#424242]">
-        <h1 class="text-xl font-semibold tracking-tight">AI Model UI</h1>
+        <h1 class="text-xl font-semibold tracking-tight">Model UI</h1>
         <div class="flex items-center gap-3">
           <label class="text-sm font-medium text-gray-400">Stream Responses</label>
           <input type="checkbox" id="global-stream" checked class="w-5 h-5 accent-[#10a37f] cursor-pointer">
